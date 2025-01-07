@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get/get.dart';
-import 'screens/auth/login_screen.dart';
+import 'screens/home/home_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/medical_report_provider.dart';
 import 'providers/qa_provider.dart';
@@ -28,9 +28,9 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           useMaterial3: true,
         ),
-        home: const LoginScreen(),
+        home: const HomeScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );
   }
-} 
+}

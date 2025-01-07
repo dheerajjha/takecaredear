@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/qa_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../auth/login_screen.dart';
 import 'question_detail_screen.dart';
 
 class QAScreen extends StatefulWidget {
@@ -18,8 +19,8 @@ class _QAScreenState extends State<QAScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() =>
-        Provider.of<QAProvider>(context, listen: false).loadQuestions());
+    Future.microtask(
+        () => Provider.of<QAProvider>(context, listen: false).loadQuestions());
   }
 
   @override
@@ -28,17 +29,44 @@ class _QAScreenState extends State<QAScreen> {
     super.dispose();
   }
 
-  Future<void> _addQuestion() async {
+  Future<void> _navigateToLogin() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
+
+    // If we returned from login and are authenticated, post the question
+    if (result == true && mounted) {
+      await _addQuestion();
+    }
+  }
+
+  Future<void> _handleQuestionSubmit() async {
     if (_questionController.text.trim().isEmpty) return;
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated) {
+      await _navigateToLogin();
+      return;
+    }
+
+    await _addQuestion();
+  }
+
+  Future<void> _addQuestion() async {
     setState(() => _isLoading = true);
     try {
       final userId = Provider.of<AuthProvider>(context, listen: false).userId;
-      final userEmail = Provider.of<AuthProvider>(context, listen: false).userEmail;
+      final userEmail =
+          Provider.of<AuthProvider>(context, listen: false).userEmail;
+
+      if (userId == null || userEmail == null) {
+        throw Exception('User not authenticated');
+      }
 
       await Provider.of<QAProvider>(context, listen: false).addQuestion(
-        userId!,
-        userEmail!,
+        userId,
+        userEmail,
         _questionController.text.trim(),
       );
 
@@ -51,12 +79,13 @@ class _QAScreenState extends State<QAScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error posting question: ${e.toString()}')),
+          SnackBar(content: Text('Failed to post question: ${e.toString()}')),
         );
       }
-    }
-    if (mounted) {
-      setState(() => _isLoading = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -66,7 +95,7 @@ class _QAScreenState extends State<QAScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
                 Expanded(
@@ -77,20 +106,16 @@ class _QAScreenState extends State<QAScreen> {
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 3,
-                    minLines: 1,
                   ),
                 ),
                 const SizedBox(width: 16),
-                IconButton(
-                  onPressed: _isLoading ? null : _addQuestion,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send),
-                ),
+                if (_isLoading)
+                  const CircularProgressIndicator()
+                else
+                  ElevatedButton(
+                    onPressed: _handleQuestionSubmit,
+                    child: const Text('Post'),
+                  ),
               ],
             ),
           ),
@@ -103,37 +128,27 @@ class _QAScreenState extends State<QAScreen> {
                     child: Text('No questions yet. Be the first to ask!'),
                   );
                 }
-
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
                   itemCount: questions.length,
                   itemBuilder: (context, index) {
                     final question = questions[index];
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: ListTile(
                         title: Text(question['question']),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              'Asked by: ${question['userEmail']}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            Text(
-                              'Answers: ${(question['answers'] as List).length}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
+                        subtitle: Text(
+                          'Asked by ${question['userEmail']} • ${question['answers'].length} answers',
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  QuestionDetailScreen(question: question),
+                              builder: (context) => QuestionDetailScreen(
+                                question: question,
+                              ),
                             ),
                           );
                         },
@@ -148,4 +163,4 @@ class _QAScreenState extends State<QAScreen> {
       ),
     );
   }
-} 
+}

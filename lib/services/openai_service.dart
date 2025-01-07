@@ -8,7 +8,8 @@ class OpenAIService {
   static const String _apiKey =
       'DjsQif8bMwHVqoJ2FEHMR1W7v7O7qYoBnRrDJc0ZH386eoWCeRXyJQQJ99AJACYeBjFXJ3w3AAABACOGOH8O';
 
-  Future<String> analyzeMedicalReport(String base64Image) async {
+  Future<Map<String, dynamic>> analyzeMedicalReport(
+      String base64File, bool isPdf) async {
     final uri = Uri.https(
       _endpoint,
       '/openai/deployments/$_deploymentName/chat/completions',
@@ -21,7 +22,41 @@ class OpenAIService {
         {
           'type': 'text',
           'text':
-              'You are a medical professional assistant that helps analyze medical reports and test results. Provide clear explanations in simple terms that patients can understand. Focus on key findings, any abnormal values, and what they might indicate. Also suggest relevant follow-up questions patients might want to ask their healthcare provider.'
+              '''You are a medical professional assistant that helps analyze medical reports and test results. 
+Analyze the provided medical report and return a JSON response with the following structure:
+{
+  "summary": "A brief overview of the report",
+  "key_findings": [
+    {
+      "category": "category name",
+      "value": "actual value",
+      "normal_range": "reference range",
+      "interpretation": "what this means in simple terms"
+    }
+  ],
+  "abnormal_results": [
+    {
+      "name": "test name",
+      "value": "abnormal value",
+      "severity": "low/medium/high",
+      "concern": "what this might indicate"
+    }
+  ],
+  "recommendations": [
+    {
+      "type": "follow_up/lifestyle/medication/etc",
+      "description": "detailed recommendation"
+    }
+  ],
+  "questions_to_ask": [
+    {
+      "topic": "topic area",
+      "question": "suggested question"
+    }
+  ]
+}
+
+Ensure all responses strictly follow this JSON format. Provide clear, patient-friendly explanations while maintaining medical accuracy.'''
         }
       ]
     };
@@ -31,12 +66,17 @@ class OpenAIService {
       'content': [
         {
           'type': 'text',
-          'text':
-              'Please analyze this medical report and explain the findings in simple terms:'
+          'text': isPdf
+              ? 'Please analyze this PDF medical report and provide a structured analysis:'
+              : 'Please analyze this medical report image and provide a structured analysis:'
         },
         {
-          'type': 'image_url',
-          'image_url': {'url': 'data:image/png;base64,$base64Image'}
+          'type': isPdf ? 'file_url' : 'image_url',
+          isPdf ? 'file_url' : 'image_url': {
+            'url': isPdf
+                ? 'data:application/pdf;base64,$base64File'
+                : 'data:image/png;base64,$base64File'
+          }
         }
       ]
     };
@@ -54,15 +94,17 @@ class OpenAIService {
           'top_p': 0.95,
           'frequency_penalty': 0,
           'presence_penalty': 0,
-          'max_tokens': 800,
+          'max_tokens': 1000,
           'stream': false,
+          'response_format': {'type': 'json_object'}
         }),
       );
 
       if (response.statusCode == 200) {
-        print(response);
         final jsonResponse = jsonDecode(response.body);
-        return jsonResponse['choices'][0]['message']['content'];
+        print(jsonResponse);
+        final content = jsonResponse['choices'][0]['message']['content'];
+        return jsonDecode(content);
       } else {
         throw Exception('Failed to analyze report: ${response.statusCode}');
       }

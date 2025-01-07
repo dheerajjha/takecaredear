@@ -7,11 +7,11 @@ class MedicalReportProvider with ChangeNotifier {
   final _fileService = FileService();
 
   bool _isLoading = false;
-  String? _analysis;
+  Map<String, dynamic>? _analysis;
   String? _error;
 
   bool get isLoading => _isLoading;
-  String? get analysis => _analysis;
+  Map<String, dynamic>? get analysis => _analysis;
   String? get error => _error;
 
   Future<void> analyzeImageReport() async {
@@ -25,7 +25,8 @@ class MedicalReportProvider with ChangeNotifier {
         return;
       }
 
-      final analysis = await _openAIService.analyzeMedicalReport(base64Image);
+      final analysis =
+          await _openAIService.analyzeMedicalReport(base64Image, false);
       _setAnalysis(analysis);
     } catch (e) {
       _setError(e.toString());
@@ -45,7 +46,8 @@ class MedicalReportProvider with ChangeNotifier {
         return;
       }
 
-      final analysis = await _openAIService.analyzeMedicalReport(base64Pdf);
+      final analysis =
+          await _openAIService.analyzeMedicalReport(base64Pdf, true);
       _setAnalysis(analysis);
     } catch (e) {
       _setError(e.toString());
@@ -59,7 +61,7 @@ class MedicalReportProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _setAnalysis(String value) {
+  void _setAnalysis(Map<String, dynamic> value) {
     _analysis = value;
     _error = null;
     notifyListeners();

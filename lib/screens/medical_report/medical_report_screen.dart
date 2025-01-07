@@ -14,41 +14,53 @@ class MedicalReportScreen extends StatefulWidget {
 
 class _MedicalReportScreenState extends State<MedicalReportScreen> {
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(() =>
-        Provider.of<MedicalReportProvider>(context, listen: false).loadReports());
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Consumer<MedicalReportProvider>(
         builder: (context, reportProvider, child) {
-          final reports = reportProvider.reports;
-          if (reports.isEmpty) {
+          if (reportProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (reportProvider.error != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(
-                    Icons.medical_information_outlined,
-                    size: 64,
-                    color: Colors.grey,
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.red,
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    reportProvider.error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (reportProvider.analysis != null) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
-                    'No Medical Reports Yet',
+                    'Analysis Result',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Add your first medical report to get started',
-                    style: TextStyle(
-                      color: Colors.grey,
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(reportProvider.analysis!),
                     ),
                   ),
                 ],
@@ -56,35 +68,8 @@ class _MedicalReportScreenState extends State<MedicalReportScreen> {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: reports.length,
-            itemBuilder: (context, index) {
-              final report = reports[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  title: Text(
-                    report['title'] ?? 'Medical Report',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Date: ${report['timestamp']?.split('T')[0] ?? 'N/A'}',
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ReportDetailScreen(report: report),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
+          return const Center(
+            child: Text('Upload a medical report to get started'),
           );
         },
       ),
@@ -99,4 +84,4 @@ class _MedicalReportScreenState extends State<MedicalReportScreen> {
       ),
     );
   }
-} 
+}

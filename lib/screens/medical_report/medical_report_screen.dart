@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/medical_report_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../widgets/analysis_components.dart';
+import '../../models/medical_report.dart';
 import 'add_report_screen.dart';
+import 'report_detail_screen.dart';
 
 class MedicalReportScreen extends StatefulWidget {
   const MedicalReportScreen({super.key});
@@ -13,54 +13,12 @@ class MedicalReportScreen extends StatefulWidget {
 }
 
 class _MedicalReportScreenState extends State<MedicalReportScreen> {
-  Widget _buildSectionCard(String title, Widget content,
-      {Color? color, IconData? icon}) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: color ?? Colors.grey.shade200,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: color?.withOpacity(0.1) ?? Colors.grey.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, color: color ?? Colors.grey.shade700),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color ?? Colors.grey.shade800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: content,
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MedicalReportProvider>().loadReports();
+    });
   }
 
   Widget _buildEmptyState() {
@@ -138,7 +96,7 @@ class _MedicalReportScreenState extends State<MedicalReportScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  // Implement retry logic here
+                  context.read<MedicalReportProvider>().loadReports();
                 },
                 child: const Text('Retry'),
               ),
@@ -168,76 +126,114 @@ class _MedicalReportScreenState extends State<MedicalReportScreen> {
     );
   }
 
-  Widget _buildAnalysisResult(Map<String, dynamic> analysis) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (analysis['summary'] != null)
-          _buildSectionCard(
-            'Summary',
-            Text(
-              analysis['summary'],
-              style: const TextStyle(fontSize: 16),
+  Widget _buildReportList(List<MedicalReport> reports) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: reports.length,
+      itemBuilder: (context, index) {
+        final report = reports[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            title: Text(
+              report.name,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            color: Colors.blue,
-            icon: Icons.summarize,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  'Created on ${report.dateTime.toString().split('.')[0]}',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: report.isSynced
+                        ? Colors.green.shade50
+                        : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        report.isSynced ? Icons.cloud_done : Icons.cloud_off,
+                        size: 14,
+                        color: report.isSynced
+                            ? Colors.green.shade700
+                            : Colors.orange.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        report.isSynced ? 'Synced' : 'Not Synced',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: report.isSynced
+                              ? Colors.green.shade700
+                              : Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReportDetailScreen(report: report),
+                ),
+              );
+            },
           ),
-        if (analysis['key_findings'] != null)
-          _buildSectionCard(
-            'Key Findings',
-            AnalysisComponents.buildKeyFindings(analysis['key_findings']),
-            color: Colors.blue,
-            icon: Icons.analytics,
-          ),
-        if (analysis['abnormal_results'] != null)
-          _buildSectionCard(
-            'Abnormal Results',
-            AnalysisComponents.buildAbnormalResults(
-                analysis['abnormal_results']),
-            color: Colors.orange,
-            icon: Icons.warning_amber,
-          ),
-        if (analysis['recommendations'] != null)
-          _buildSectionCard(
-            'Recommendations',
-            AnalysisComponents.buildRecommendations(
-                analysis['recommendations']),
-            color: Colors.green,
-            icon: Icons.recommend,
-          ),
-        if (analysis['questions_to_ask'] != null)
-          _buildSectionCard(
-            'Questions to Ask Your Doctor',
-            AnalysisComponents.buildQuestionsToAsk(
-                analysis['questions_to_ask']),
-            color: Colors.purple,
-            icon: Icons.help_outline,
-          ),
-      ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Medical Reports'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () {
+              context.read<MedicalReportProvider>().syncAllReports();
+            },
+          ),
+        ],
+      ),
       body: Consumer<MedicalReportProvider>(
-        builder: (context, reportProvider, child) {
-          if (reportProvider.isLoading) {
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
             return _buildLoadingState();
           }
 
-          if (reportProvider.error != null) {
-            return _buildErrorState(reportProvider.error!);
+          if (provider.error != null) {
+            return _buildErrorState(provider.error!);
           }
 
-          if (reportProvider.analysis != null) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildAnalysisResult(reportProvider.analysis!),
-            );
+          if (provider.reports.isEmpty) {
+            return _buildEmptyState();
           }
 
-          return _buildEmptyState();
+          return _buildReportList(provider.reports);
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
